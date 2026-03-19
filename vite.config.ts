@@ -13,12 +13,4 @@ export default defineConfig({
   build: {
     outDir: 'dist/client',
   },
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3200',
-        changeOrigin: true,
-      },
-    },
-  },
 })
