@@ -13,7 +13,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "dev": "vite",
+    "dev": "node bin/dev.mjs",
     "build": "vite build",
     "preview": "node bin/cli.mjs",
     "prepublishOnly": "npm run build"

@@ -46,6 +46,9 @@ export function AppSidebar({
   return (
     <Sidebar {...props}>
       <SidebarHeader>
+        <div className="p-2">
+          <img src="/logo.svg" alt="Logo" className="size-8" />
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
