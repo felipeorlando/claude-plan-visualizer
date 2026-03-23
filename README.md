@@ -21,10 +21,16 @@ Built with React, Tailwind CSS v4, and shadcn/ui.
 ## Quick start
 
 ```bash
-npx claude-plan-visualizer --dir ./my-docs
+npm i -g claude-plan-visualizer
 ```
 
-This starts a local server, opens your browser, and serves all `.md` files from the given directory.
+Then run it from any project directory:
+
+```bash
+claude-plan-visualizer
+```
+
+This starts a local server, opens your browser, and serves all `.md` files. It auto-detects `.claude/plans` or `docs/plans` in the current directory.
 
 ### Options
 
