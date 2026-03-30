@@ -11,6 +11,18 @@ const __dirname = dirname(__filename)
 
 // Parse CLI args
 const args = process.argv.slice(2)
+
+function getAllArgs(name) {
+  const results = []
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === `--${name}` && args[i + 1]) {
+      results.push(args[i + 1])
+      i++
+    }
+  }
+  return results
+}
+
 function getArg(name, defaultValue) {
   const idx = args.indexOf(`--${name}`)
   return idx !== -1 && args[idx + 1] ? args[idx + 1] : defaultValue
@@ -22,18 +34,38 @@ if (hasFlag('help') || hasFlag('h')) {
   Usage: claude-plan-visualizer [--dir <path>] [--port <number>] [--no-open]
 
   Options:
-    --dir <path>   Path to plans directory (default: auto-detect .claude/plans)
-    --port <number> Port to serve on (default: 3200)
+    --dir <path>    Path to plans directory (repeatable, comma-separated)
+    --port <number> Port to serve on (default: 3200, env: CPV_PORT)
     --no-open       Don't open browser automatically
     --help          Show this help message
+
+  Environment variables:
+    CPV_PORT=<n>    Override port (takes priority over --port)
+    CPV_REMOTE=1    Remote/devcontainer mode: fixed port, skip browser auto-open
 `)
   process.exit(0)
 }
 
+// Env vars
+const isRemote = process.env.CPV_REMOTE === '1'
+
+// Collect --dir args, supporting comma-separated values
+function collectDirs() {
+  const rawDirs = getAllArgs('dir')
+  const expanded = []
+  for (const d of rawDirs) {
+    for (const part of d.split(',')) {
+      const trimmed = part.trim()
+      if (trimmed) expanded.push(resolve(trimmed))
+    }
+  }
+  return expanded
+}
+
 // Auto-detect plans directory
-function findPlansDir() {
-  const explicit = getArg('dir', null)
-  if (explicit) return resolve(explicit)
+function findPlansDirs() {
+  const explicit = collectDirs()
+  if (explicit.length > 0) return explicit
 
   const cwd = process.cwd()
   const candidates = [
@@ -42,17 +74,17 @@ function findPlansDir() {
   ]
 
   for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate
+    if (existsSync(candidate)) return [candidate]
   }
 
-  return null
+  return []
 }
 
-const dir = findPlansDir()
-const port = parseInt(getArg('port', '3200'), 10)
-const noOpen = hasFlag('no-open')
+const dirs = findPlansDirs()
+const port = parseInt(process.env.CPV_PORT || getArg('port', '3200'), 10)
+const noOpen = hasFlag('no-open') || isRemote
 
-if (!dir) {
+if (dirs.length === 0) {
   console.error(`Error: No plans directory found.`)
   console.error(`Looked for:`)
   console.error(`  - .claude/plans`)
@@ -63,6 +95,19 @@ if (!dir) {
 }
 
 const projectName = basename(process.cwd())
+
+// Build dir labels: use parent folder name + basename for disambiguation
+function getDirLabel(dirPath) {
+  const parent = basename(dirname(dirPath))
+  const base = basename(dirPath)
+  if (parent && parent !== '.' && parent !== '/') {
+    return `${parent} / ${base}`
+  }
+  return base
+}
+
+const dirEntries = dirs.map((d) => ({ path: d, label: getDirLabel(d) }))
+const multiDir = dirs.length > 1
 
 const DATE_PREFIX_RE = /^(\d{4}-\d{2}-\d{2})-(.+)$/
 
@@ -88,7 +133,8 @@ function getMimeType(ext) {
   return types[ext] || 'application/octet-stream'
 }
 
-async function scanDirectory(plansDir) {
+async function scanDirectory(plansDir, dirLabel) {
+  if (!existsSync(plansDir)) return []
   const entries = await readdir(plansDir)
   const files = []
 
@@ -103,6 +149,7 @@ async function scanDirectory(plansDir) {
       date: dateMatch ? dateMatch[1] : null,
       title: slugToTitle(slug),
       modifiedAt: fileStat.mtime.toISOString(),
+      ...(multiDir ? { dirLabel } : {}),
     })
   }
 
@@ -114,6 +161,30 @@ async function scanDirectory(plansDir) {
   })
 
   return files
+}
+
+async function scanAllDirectories() {
+  const allFiles = []
+  for (const entry of dirEntries) {
+    const files = await scanDirectory(entry.path, entry.label)
+    allFiles.push(...files)
+  }
+  allFiles.sort((a, b) => {
+    const dateA = a.date ?? '0000-00-00'
+    const dateB = b.date ?? '0000-00-00'
+    if (dateA !== dateB) return dateB.localeCompare(dateA)
+    return b.modifiedAt.localeCompare(a.modifiedAt)
+  })
+  return allFiles
+}
+
+function findFileAcrossDirs(slug) {
+  const filename = `${slug}.md`
+  for (const entry of dirEntries) {
+    const filepath = join(entry.path, filename)
+    if (existsSync(filepath)) return filepath
+  }
+  return null
 }
 
 // Resolve static assets directory
@@ -134,7 +205,7 @@ const server = createServer(async (req, res) => {
 
   try {
     if (pathname === '/api/files' && req.method === 'GET') {
-      const files = await scanDirectory(dir)
+      const files = await scanAllDirectories()
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ files, projectName }))
       return
@@ -143,10 +214,9 @@ const server = createServer(async (req, res) => {
     const fileMatch = pathname.match(/^\/api\/files\/(.+)$/)
     if (fileMatch && req.method === 'GET') {
       const slug = decodeURIComponent(fileMatch[1])
-      const filename = `${slug}.md`
-      const filepath = join(dir, filename)
+      const filepath = findFileAcrossDirs(slug)
 
-      if (!existsSync(filepath)) {
+      if (!filepath) {
         res.writeHead(404, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ error: 'File not found' }))
         return
@@ -157,7 +227,7 @@ const server = createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({
         slug,
-        filename,
+        filename: basename(filepath),
         date: dateMatch ? dateMatch[1] : null,
         content,
       }))
@@ -185,8 +255,14 @@ server.listen(port, async () => {
   console.log(``)
   console.log(`  Claude Plan Visualizer`)
   console.log(`  Project: ${projectName}`)
-  console.log(`  Plans:   ${dir}`)
+  for (const entry of dirEntries) {
+    console.log(`  Plans:   ${entry.path}`)
+  }
   console.log(`  URL:     ${url}`)
+  if (isRemote) {
+    console.log(``)
+    console.log(`  Remote mode: open ${url} in your browser`)
+  }
   console.log(``)
 
   if (!noOpen) {

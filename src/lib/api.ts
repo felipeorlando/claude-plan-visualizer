@@ -4,6 +4,7 @@ export interface FileEntry {
   date: string | null
   title: string
   modifiedAt: string
+  dirLabel?: string
 }
 
 export interface FileContent {
