@@ -17,11 +17,15 @@ Built with React, Tailwind CSS v4, and shadcn/ui.
 ## Features
 
 - **Sidebar navigation** with date-grouped file listing and collapsible day sections
+- **Multi-directory support** — view plans from multiple repos/directories at once
 - **Table of contents** auto-generated from headings, with active-section tracking as you scroll
 - **Command palette** (`Cmd+K`) for quick file search
 - **Syntax highlighting** for code blocks
 - **GFM support** — tables, task lists, strikethrough, and more
 - **Light / Dark / System theme** toggle
+- **Claude Code hook** — auto-opens viewer when Claude exits plan mode
+- **Slash commands** for Claude Code integration
+- **Remote/devcontainer support** via environment variables
 - **Zero config** — just point it at a directory and go
 
 ## Quick start
@@ -40,11 +44,80 @@ This starts a local server, opens your browser, and serves all `.md` files. It a
 
 ### Options
 
-| Flag              | Default      | Description                      |
-| ----------------- | ------------ | -------------------------------- |
-| `--dir <path>`    | `docs/plans` | Directory containing `.md` files |
-| `--port <number>` | `3200`       | Port to serve on                 |
-| `--no-open`       | —            | Don't auto-open the browser      |
+| Flag              | Default      | Description                                  |
+| ----------------- | ------------ | -------------------------------------------- |
+| `--dir <path>`    | auto-detect  | Directory containing `.md` files (repeatable) |
+| `--port <number>` | `3200`       | Port to serve on                             |
+| `--no-open`       | —            | Don't auto-open the browser                  |
+
+### Multi-directory support
+
+View plans from multiple projects at once:
+
+```bash
+# Repeat the --dir flag
+claude-plan-visualizer --dir ./proj1/.claude/plans --dir ./proj2/.claude/plans
+
+# Or use comma-separated paths
+claude-plan-visualizer --dir ./proj1/.claude/plans,./proj2/.claude/plans
+```
+
+The sidebar groups files by directory with collapsible sections, so you can easily browse plans from different projects.
+
+### Environment variables
+
+| Variable     | Description                                             |
+| ------------ | ------------------------------------------------------- |
+| `CPV_PORT`   | Override port (takes priority over `--port`)             |
+| `CPV_REMOTE` | Set to `1` for remote/devcontainer mode (skip auto-open) |
+
+Remote mode is useful when running inside SSH sessions, devcontainers, or Codespaces:
+
+```bash
+CPV_REMOTE=1 claude-plan-visualizer
+# → Remote mode: open http://localhost:3200 in your browser
+```
+
+## Claude Code integration
+
+### ExitPlanMode hook (auto-open viewer)
+
+Automatically open the plan viewer whenever Claude exits plan mode:
+
+```bash
+# Print setup instructions
+claude-plan-visualizer-hook --setup
+```
+
+Add to your `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PermissionRequest": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claude-plan-visualizer-hook"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Slash commands
+
+Copy the `.claude/commands/` directory from this repo into your project to get these commands in Claude Code:
+
+| Command                        | Description                    |
+| ------------------------------ | ------------------------------ |
+| `/project:plans-open`          | Open the plan viewer           |
+| `/project:plans-new [title]`   | Create a new plan file         |
+| `/project:plans-list`          | List all plans in the project  |
 
 ## File naming convention
 

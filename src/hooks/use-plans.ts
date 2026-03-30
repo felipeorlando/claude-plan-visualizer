@@ -8,6 +8,31 @@ export interface DayGroup {
   files: FileEntry[]
 }
 
+export interface DirSection {
+  dirLabel: string
+  groups: DayGroup[]
+}
+
+function groupByDate(files: FileEntry[]): DayGroup[] {
+  const map = new Map<string, FileEntry[]>()
+
+  for (const file of files) {
+    const key = file.date ?? '__undated__'
+    const existing = map.get(key)
+    if (existing) {
+      existing.push(file)
+    } else {
+      map.set(key, [file])
+    }
+  }
+
+  return Array.from(map.entries()).map(([key, groupFiles]) => ({
+    date: key === '__undated__' ? null : key,
+    label: key === '__undated__' ? 'Undated' : formatDate(key),
+    files: groupFiles,
+  }))
+}
+
 export function usePlans() {
   const [files, setFiles] = useState<FileEntry[]>([])
   const [projectName, setProjectName] = useState('Plans')
@@ -24,25 +49,34 @@ export function usePlans() {
       .finally(() => setLoading(false))
   }, [])
 
-  const groups = useMemo((): DayGroup[] => {
-    const map = new Map<string, FileEntry[]>()
+  const hasMultipleDirs = useMemo(
+    () => files.some((f) => f.dirLabel),
+    [files]
+  )
 
+  const groups = useMemo((): DayGroup[] => {
+    return groupByDate(files)
+  }, [files])
+
+  const dirSections = useMemo((): DirSection[] => {
+    if (!hasMultipleDirs) return []
+
+    const dirMap = new Map<string, FileEntry[]>()
     for (const file of files) {
-      const key = file.date ?? '__undated__'
-      const existing = map.get(key)
+      const label = file.dirLabel ?? 'Plans'
+      const existing = dirMap.get(label)
       if (existing) {
         existing.push(file)
       } else {
-        map.set(key, [file])
+        dirMap.set(label, [file])
       }
     }
 
-    return Array.from(map.entries()).map(([key, groupFiles]) => ({
-      date: key === '__undated__' ? null : key,
-      label: key === '__undated__' ? 'Undated' : formatDate(key),
-      files: groupFiles,
+    return Array.from(dirMap.entries()).map(([dirLabel, dirFiles]) => ({
+      dirLabel,
+      groups: groupByDate(dirFiles),
     }))
-  }, [files])
+  }, [files, hasMultipleDirs])
 
-  return { files, groups, projectName, loading, error }
+  return { files, groups, dirSections, hasMultipleDirs, projectName, loading, error }
 }

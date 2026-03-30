@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "claude-plan-visualizer": "./bin/cli.mjs"
+    "claude-plan-visualizer": "./bin/cli.mjs",
+    "claude-plan-visualizer-hook": "./bin/hook.mjs"
   },
   "files": [
     "bin/",
