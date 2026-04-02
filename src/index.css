@@ -349,6 +349,56 @@
   font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Annotation highlight styles */
+.annotation-highlight-comment {
+  background: rgba(59, 130, 246, 0.15);
+}
+.annotation-highlight-delete {
+  background: rgba(239, 68, 68, 0.15);
+  text-decoration: line-through;
+  text-decoration-color: rgba(239, 68, 68, 0.5);
+}
+.annotation-highlight-replace {
+  background: rgba(245, 158, 11, 0.15);
+}
+.annotation-highlight-insert {
+  background: rgba(34, 197, 94, 0.15);
+}
+.dark .annotation-highlight-comment {
+  background: rgba(59, 130, 246, 0.25);
+}
+.dark .annotation-highlight-delete {
+  background: rgba(239, 68, 68, 0.25);
+  text-decoration-color: rgba(239, 68, 68, 0.6);
+}
+.dark .annotation-highlight-replace {
+  background: rgba(245, 158, 11, 0.25);
+}
+.dark .annotation-highlight-insert {
+  background: rgba(34, 197, 94, 0.25);
+}
+.annotation-mark {
+  transition: box-shadow 0.15s;
+}
+.annotation-mark:hover {
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+/* Annotation toolbar animation */
+.annotation-toolbar {
+  animation: toolbar-in 0.12s ease-out;
+}
+@keyframes toolbar-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
