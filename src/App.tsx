@@ -22,7 +22,7 @@ import { PlanPage } from '@/pages/plan-page'
 import { usePlans } from '@/hooks/use-plans'
 
 export default function App() {
-  const { files, groups, projectName, loading, error } = usePlans()
+  const { files, groups, dirSections, hasMultipleDirs, projectName, loading, error } = usePlans()
   const [searchOpen, setSearchOpen] = useState(false)
   const [location] = useLocation()
 
@@ -39,6 +39,8 @@ export default function App() {
       <SidebarProvider>
         <AppSidebar
           groups={groups}
+          dirSections={dirSections}
+          hasMultipleDirs={hasMultipleDirs}
           projectName={projectName}
           loading={loading}
           error={error}
