@@ -1,8 +1,8 @@
 import * as React from 'react'
 import { Link, useLocation } from 'wouter'
-import { ChevronRightIcon, SearchIcon } from 'lucide-react'
+import { ChevronRightIcon, FolderIcon, SearchIcon } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
-import type { DayGroup } from '@/hooks/use-plans'
+import type { DayGroup, DirSection } from '@/hooks/use-plans'
 import {
   Collapsible,
   CollapsibleContent,
@@ -14,6 +14,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -27,14 +28,58 @@ import {
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   groups: DayGroup[]
+  dirSections: DirSection[]
+  hasMultipleDirs: boolean
   projectName: string
   loading: boolean
   error: string | null
   onOpenSearch: () => void
 }
 
+function DateGroupList({ groups, location }: { groups: DayGroup[]; location: string }) {
+  return (
+    <>
+      {groups.map((group) => (
+        <Collapsible
+          key={group.date ?? 'undated'}
+          defaultOpen
+          className="group/collapsible"
+        >
+          <SidebarMenuItem>
+            <CollapsibleTrigger asChild>
+              <SidebarMenuButton className="font-medium">
+                {group.label}
+                <ChevronRightIcon className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+              </SidebarMenuButton>
+            </CollapsibleTrigger>
+            {group.files.length > 0 && (
+              <CollapsibleContent>
+                <SidebarMenuSub>
+                  {group.files.map((file) => (
+                    <SidebarMenuSubItem key={file.slug}>
+                      <SidebarMenuSubButton
+                        className="h-auto min-h-7 py-1"
+                        isActive={location === `/${file.slug}`}
+                        render={<Link href={`/${file.slug}`} />}
+                      >
+                        {file.title}
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  ))}
+                </SidebarMenuSub>
+              </CollapsibleContent>
+            )}
+          </SidebarMenuItem>
+        </Collapsible>
+      ))}
+    </>
+  )
+}
+
 export function AppSidebar({
   groups,
+  dirSections,
+  hasMultipleDirs,
   projectName,
   loading,
   error,
@@ -86,42 +131,31 @@ export function AppSidebar({
               No plan files found
             </p>
           </SidebarGroup>
+        ) : hasMultipleDirs ? (
+          // Multi-directory mode: show each dir as a collapsible section
+          dirSections.map((section) => (
+            <SidebarGroup key={section.dirLabel}>
+              <Collapsible defaultOpen className="group/dir">
+                <SidebarGroupLabel asChild>
+                  <CollapsibleTrigger className="flex w-full items-center gap-1.5">
+                    <FolderIcon className="size-3.5" />
+                    {section.dirLabel}
+                    <ChevronRightIcon className="ml-auto size-3.5 transition-transform group-data-[state=open]/dir:rotate-90" />
+                  </CollapsibleTrigger>
+                </SidebarGroupLabel>
+                <CollapsibleContent>
+                  <SidebarMenu>
+                    <DateGroupList groups={section.groups} location={location} />
+                  </SidebarMenu>
+                </CollapsibleContent>
+              </Collapsible>
+            </SidebarGroup>
+          ))
         ) : (
+          // Single directory mode: flat date groups
           <SidebarGroup>
             <SidebarMenu>
-              {groups.map((group) => (
-                <Collapsible
-                  key={group.date ?? 'undated'}
-                  defaultOpen
-                  className="group/collapsible"
-                >
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton className="font-medium">
-                        {group.label}
-                        <ChevronRightIcon className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    {group.files.length > 0 && (
-                      <CollapsibleContent>
-                        <SidebarMenuSub>
-                          {group.files.map((file) => (
-                            <SidebarMenuSubItem key={file.slug}>
-                              <SidebarMenuSubButton
-                                className="h-auto min-h-7 py-1"
-                                isActive={location === `/${file.slug}`}
-                                render={<Link href={`/${file.slug}`} />}
-                              >
-                                {file.title}
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    )}
-                  </SidebarMenuItem>
-                </Collapsible>
-              ))}
+              <DateGroupList groups={groups} location={location} />
             </SidebarMenu>
           </SidebarGroup>
         )}
